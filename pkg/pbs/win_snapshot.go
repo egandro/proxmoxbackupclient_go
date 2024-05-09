@@ -52,7 +52,7 @@ func getAppDataFolder() (string, error) {
 	return appDataFolder, nil
 }
 
-func CreateVSSSnapshot(path string) string {
+func createVSSSnapshot(path string) string {
 
 	path, _ = filepath.Abs(path)
 	volName := filepath.VolumeName(path)
