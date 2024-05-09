@@ -1,6 +1,7 @@
+//go:build linux || darwin || freebsd || openbsd
 // +build linux darwin freebsd openbsd
 
-package main 
+package pbs
 
 func createVSSSnapshot(path string) string {
 	return path

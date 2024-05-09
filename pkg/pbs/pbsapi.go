@@ -1,4 +1,4 @@
-package main
+package pbs
 
 import (
 	"bytes"
@@ -75,14 +75,14 @@ func (e *AuthErr) Error() string {
 }
 
 type PBSClient struct {
-	baseurl         string
-	certfingerprint string
+	Baseurl         string
+	Certfingerprint string
 	apitoken        string
-	secret          string
-	authid          string
+	Secret          string
+	Authid          string
 
-	datastore string
-	namespace string
+	Datastore string
+	Namespace string
 	manifest  BackupManifest
 
 	client    http.Client
@@ -96,12 +96,12 @@ var blobUncompressedMagic = []byte{66, 171, 56, 7, 190, 131, 112, 161}
 
 func (pbs *PBSClient) CreateDynamicIndex(name string) uint64 {
 
-	req, err := http.NewRequest("POST", pbs.baseurl+"/dynamic_index", bytes.NewBuffer([]byte(fmt.Sprintf("{\"archive-name\": \"%s\"}", name))))
+	req, err := http.NewRequest("POST", pbs.Baseurl+"/dynamic_index", bytes.NewBuffer([]byte(fmt.Sprintf("{\"archive-name\": \"%s\"}", name))))
 	if err != nil {
 		panic(err)
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.authid, pbs.secret))
+	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.Authid, pbs.Secret))
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
 	resp2, err := pbs.client.Do(req)
@@ -150,7 +150,7 @@ func (pbs *PBSClient) UploadUncompressedChunk(writerid uint64, digest string, ch
 	q.Add("size", fmt.Sprintf("%d", len(chunkdata)))
 	q.Add("wid", fmt.Sprintf("%d", writerid))
 
-	req, err := http.NewRequest("POST", pbs.baseurl+"/dynamic_chunk?"+q.Encode(), bytes.NewBuffer(outBuffer))
+	req, err := http.NewRequest("POST", pbs.Baseurl+"/dynamic_chunk?"+q.Encode(), bytes.NewBuffer(outBuffer))
 
 	resp2, err := pbs.client.Do(req)
 	if err != nil {
@@ -194,7 +194,7 @@ func (pbs *PBSClient) UploadCompressedChunk(writerid uint64, digest string, chun
 	q.Add("size", fmt.Sprintf("%d", len(chunkdata)))
 	q.Add("wid", fmt.Sprintf("%d", writerid))
 
-	req, err := http.NewRequest("POST", pbs.baseurl+"/dynamic_chunk?"+q.Encode(), bytes.NewBuffer(outBuffer))
+	req, err := http.NewRequest("POST", pbs.Baseurl+"/dynamic_chunk?"+q.Encode(), bytes.NewBuffer(outBuffer))
 
 	resp2, err := pbs.client.Do(req)
 	if err != nil {
@@ -220,7 +220,7 @@ func (pbs *PBSClient) AssignChunks(writerid uint64, digests []string, offsets []
 
 	jsondata, _ := json.Marshal(indexput)
 
-	req, err := http.NewRequest("PUT", pbs.baseurl+"/dynamic_index", bytes.NewBuffer(jsondata))
+	req, err := http.NewRequest("PUT", pbs.Baseurl+"/dynamic_index", bytes.NewBuffer(jsondata))
 	if err != nil {
 		panic(err)
 	}
@@ -242,11 +242,11 @@ func (pbs *PBSClient) CloseDynamicIndex(writerid uint64, checksum string, totals
 		ChunkCount: chunkcount,
 	}
 	jsonpayload, _ := json.Marshal(finishreq)
-	req, err := http.NewRequest("POST", pbs.baseurl+"/dynamic_close", bytes.NewBuffer(jsonpayload))
+	req, err := http.NewRequest("POST", pbs.Baseurl+"/dynamic_close", bytes.NewBuffer(jsonpayload))
 	if err != nil {
 		panic(err)
 	}
-	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.authid, pbs.secret))
+	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.Authid, pbs.Secret))
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
 	resp2, err := pbs.client.Do(req)
@@ -276,7 +276,7 @@ func (pbs *PBSClient) UploadBlob(name string, data []byte) {
 	q.Add("encoded-size", fmt.Sprintf("%d", len(out)))
 	q.Add("file-name", name)
 
-	req, _ := http.NewRequest("POST", pbs.baseurl+"/blob?"+q.Encode(), bytes.NewBuffer(out))
+	req, _ := http.NewRequest("POST", pbs.Baseurl+"/blob?"+q.Encode(), bytes.NewBuffer(out))
 
 	resp2, err := pbs.client.Do(req)
 	if err != nil {
@@ -300,8 +300,8 @@ func (pbs *PBSClient) UploadManifest() {
 }
 
 func (pbs *PBSClient) Finish() {
-	req, err := http.NewRequest("POST", pbs.baseurl+"/finish", nil)
-	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.authid, pbs.secret))
+	req, err := http.NewRequest("POST", pbs.Baseurl+"/finish", nil)
+	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.Authid, pbs.Secret))
 	if err != nil {
 		panic(err)
 	}
@@ -331,7 +331,7 @@ func (pbs *PBSClient) Connect(reader bool) {
 			}
 
 			// Calculate the SHA-256 fingerprint of the certificate
-			expectedFingerprint := strings.ReplaceAll(pbs.certfingerprint, ":", "")
+			expectedFingerprint := strings.ReplaceAll(pbs.Certfingerprint, ":", "")
 			calculatedFingerprint := sha256.Sum256(peerCert.Raw)
 
 			// Compare the calculated fingerprint with the expected one
@@ -366,15 +366,15 @@ func (pbs *PBSClient) Connect(reader bool) {
 				q := &url.Values{}
 				q.Add("backup-time", fmt.Sprintf("%d", pbs.manifest.BackupTime))
 				q.Add("backup-type", pbs.manifest.BackupType)
-				q.Add("store", pbs.datastore)
-				if pbs.namespace != "" {
-					q.Add("ns", pbs.namespace)
+				q.Add("store", pbs.Datastore)
+				if pbs.Namespace != "" {
+					q.Add("ns", pbs.Namespace)
 				}
 
 				q.Add("backup-id", pbs.manifest.BackupID)
 				q.Add("debug", "1")
 				conn.Write([]byte("GET /api2/json/backup?" + q.Encode() + " HTTP/1.1\r\n"))
-				conn.Write([]byte("Authorization: " + fmt.Sprintf("PBSAPIToken=%s:%s", pbs.authid, pbs.secret) + "\r\n"))
+				conn.Write([]byte("Authorization: " + fmt.Sprintf("PBSAPIToken=%s:%s", pbs.Authid, pbs.Secret) + "\r\n"))
 				if !reader {
 					conn.Write([]byte("Upgrade: proxmox-backup-protocol-v1\r\n"))
 				} else {
@@ -420,8 +420,8 @@ func (pbs *PBSClient) DownloadPreviousToBytes(archivename string) []byte { //In 
 
 	q.Add("archive-name", archivename)
 
-	req, err := http.NewRequest("GET", pbs.baseurl+"/previous?"+q.Encode(), nil)
-	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.authid, pbs.secret))
+	req, err := http.NewRequest("GET", pbs.Baseurl+"/previous?"+q.Encode(), nil)
+	req.Header.Add("Authorization", fmt.Sprintf("PBSAPIToken=%s:%s", pbs.Authid, pbs.Secret))
 	if err != nil {
 		panic(err)
 	}

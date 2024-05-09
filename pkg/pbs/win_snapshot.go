@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package main
+package pbs
 
 import (
 	"fmt"
@@ -52,7 +52,7 @@ func getAppDataFolder() (string, error) {
 	return appDataFolder, nil
 }
 
-func createVSSSnapshot(path string) string {
+func CreateVSSSnapshot(path string) string {
 
 	path, _ = filepath.Abs(path)
 	volName := filepath.VolumeName(path)

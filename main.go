@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"hash"
 	"os"
+	"proxmoxbackupgo/pkg/pbs"
 	"runtime"
 	"sync/atomic"
 
@@ -28,7 +29,7 @@ type ChunkState struct {
 	chunkcount         uint64
 	chunkdigests       hash.Hash
 	current_chunk      []byte
-	C                  Chunker
+	C                  pbs.Chunker
 }
 
 type DidxEntry struct {
@@ -43,7 +44,7 @@ func (c *ChunkState) Init() {
 	c.chunkcount = 0
 	c.chunkdigests = sha256.New()
 	c.current_chunk = make([]byte, 0)
-	c.C = Chunker{}
+	c.C = pbs.Chunker{}
 	c.C.New(1024 * 1024 * 4)
 }
 
@@ -85,7 +86,7 @@ func main() {
 	if runtime.GOOS == "windows" {
 
 		go systray.Run(func() {
-			systray.SetIcon(ICON)
+			systray.SetIcon(pbs.ICON)
 			systray.SetTooltip("PBSGO Backup running")
 			beeep.Notify("Proxmox Backup Go", fmt.Sprintf("Backup started"), "")
 		},
@@ -94,29 +95,29 @@ func main() {
 			})
 	}
 
-	client := &PBSClient{
-		baseurl:         *baseURLFlag,
-		certfingerprint: *certFingerprintFlag, //"ea:7d:06:f9:87:73:a4:72:d0:e8:05:a4:b3:3d:95:d7:0a:26:dd:6d:5c:ca:e6:99:83:e4:11:3b:5f:10:f4:4b",
-		authid:          *authIDFlag,
-		secret:          *secretFlag,
-		datastore:       *datastoreFlag,
-		namespace:       *namespaceFlag,
+	client := &pbs.PBSClient{
+		Baseurl:         *baseURLFlag,
+		Certfingerprint: *certFingerprintFlag, //"ea:7d:06:f9:87:73:a4:72:d0:e8:05:a4:b3:3d:95:d7:0a:26:dd:6d:5c:ca:e6:99:83:e4:11:3b:5f:10:f4:4b",
+		Authid:          *authIDFlag,
+		Secret:          *secretFlag,
+		Datastore:       *datastoreFlag,
+		Namespace:       *namespaceFlag,
 	}
 
 	backupdir := *backupSourceDirFlag
 
 	fmt.Printf("Starting backup of %s\n", backupdir)
 
-	backupdir = createVSSSnapshot(backupdir)
+	backupdir = pbs.CreateVSSSnapshot(backupdir)
 	//Remove VSS snapshot on windows, on linux for now NOP
-	defer VSSCleanup()
+	defer pbs.VSSCleanup()
 
 	client.Connect(false)
 
-	archive := &PXARArchive{}
-	archive.archivename = "backup.pxar.didx"
+	archive := &pbs.PXARArchive{}
+	archive.Archivename = "backup.pxar.didx"
 
-	previousDidx := client.DownloadPreviousToBytes(archive.archivename)
+	previousDidx := client.DownloadPreviousToBytes(archive.Archivename)
 
 	fmt.Printf("Downloaded previous DIDX: %d bytes\n", len(previousDidx))
 
@@ -161,10 +162,10 @@ func main() {
 	pcat1Chunk := ChunkState{}
 	pcat1Chunk.Init()
 
-	pxarChunk.wrid = client.CreateDynamicIndex(archive.archivename)
+	pxarChunk.wrid = client.CreateDynamicIndex(archive.Archivename)
 	pcat1Chunk.wrid = client.CreateDynamicIndex("catalog.pcat1.didx")
 
-	archive.writeCB = func(b []byte) {
+	archive.WriteCB = func(b []byte) {
 		chunkpos := pxarChunk.C.Scan(b)
 
 		if chunkpos == 0 {
@@ -207,7 +208,7 @@ func main() {
 		//
 	}
 
-	archive.catalogWriteCB = func(b []byte) {
+	archive.CatalogWriteCB = func(b []byte) {
 		chunkpos := pcat1Chunk.C.Scan(b)
 
 		if chunkpos == 0 {
